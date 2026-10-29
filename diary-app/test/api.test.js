@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../src/app');
-const { createUser } = require('../src/auth');
+const { createUser, createOwnerFromEnv } = require('../src/auth');
 
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
@@ -192,4 +192,17 @@ test('entries survive restarts and new schema migrations', async () => {
   } finally {
     migrations.pop();
   }
+});
+
+test('owner can be created from environment variables only on an empty diary', async () => {
+  const dir = tmp();
+  const srv = await start(dir);
+  const env = { OWNER_USERNAME: 'owner', OWNER_PASSWORD: 'owner-pass-1', OWNER_DISPLAY_NAME: 'Owner' };
+  assert.equal(createOwnerFromEnv(srv.db, {}), false);
+  assert.equal(createOwnerFromEnv(srv.db, env), true);
+  assert.equal(createOwnerFromEnv(srv.db, { ...env, OWNER_USERNAME: 'second' }), false);
+  const owner = client(srv.base);
+  assert.equal((await owner('/api/login', { method: 'POST', body: { username: 'owner', password: 'owner-pass-1' } })).status, 200);
+  assert.equal((await owner('/api/me')).json.user.isAdmin, true);
+  await srv.close();
 });
