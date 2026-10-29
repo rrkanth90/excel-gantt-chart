@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#5b3a29">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Diary · Sign in</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/diary.css">
+</head>
+<body class="cover-body">
+  <main class="cover">
+    <div class="cover-label">
+      <h1>My Diary</h1>
+      <p class="cover-sub">Private · by invitation only</p>
+    </div>
+    <form id="login-form" class="cover-form" autocomplete="on">
+      <label>Login ID
+        <input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </label>
+      <label>Password
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="form-error" id="login-error" role="alert" hidden></p>
+      <button type="submit" class="btn btn-primary">Open diary</button>
+    </form>
+  </main>
+  <script type="module" src="/static/js/login.js"></script>
+</body>
+</html>
