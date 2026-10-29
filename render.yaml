@@ -1,0 +1,34 @@
+# Render Blueprint for the diary app (see diary-app/README.md, "Deploy on Render").
+services:
+  - type: web
+    name: my-diary
+    runtime: node
+    rootDir: diary-app
+    # A persistent disk needs a paid instance; free instances lose all files on restart.
+    plan: starter
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DIARY_MODE
+        value: shared
+      # Your first login. Render asks for these when you create the Blueprint.
+      # They are only used while the diary has no users yet.
+      - key: OWNER_USERNAME
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: OWNER_DISPLAY_NAME
+        sync: false
+    disk:
+      name: diary-data
+      mountPath: /var/data
+      sizeGB: 1

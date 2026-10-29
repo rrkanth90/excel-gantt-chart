@@ -2,15 +2,22 @@
 
 const { createApp } = require('./src/app');
 const { backupDatabase } = require('./src/db');
+const { createOwnerFromEnv } = require('./src/auth');
 
 const { app, db, config } = createApp();
+
+try {
+  if (createOwnerFromEnv(db, process.env)) console.log(`Created owner account "${process.env.OWNER_USERNAME}".`);
+} catch (err) {
+  console.error(`Could not create the owner account from OWNER_USERNAME/OWNER_PASSWORD: ${err.message}`);
+}
 
 const userCount = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 
 const server = app.listen(config.port, () => {
   console.log(`Diary is open at http://localhost:${config.port}  (data folder: ${config.dataDir})`);
   if (userCount === 0) {
-    console.log('No users yet. Create the owner account with:  npm run create-user -- --admin <login-id>');
+    console.log('No users yet. Set OWNER_USERNAME and OWNER_PASSWORD and restart, or run:  npm run create-user -- --admin <login-id>');
   }
 });
 

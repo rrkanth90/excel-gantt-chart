@@ -46,6 +46,20 @@ function createUser(db, { username, displayName, password, isAdmin = false }) {
   return info.lastInsertRowid;
 }
 
+// Lets hosts without a terminal create the first owner from environment
+// variables. Only acts on an empty diary, so it can never touch existing users.
+function createOwnerFromEnv(db, env) {
+  if (!env.OWNER_USERNAME || !env.OWNER_PASSWORD) return false;
+  if (db.prepare('SELECT COUNT(*) AS n FROM users').get().n > 0) return false;
+  createUser(db, {
+    username: env.OWNER_USERNAME,
+    displayName: env.OWNER_DISPLAY_NAME || env.OWNER_USERNAME,
+    password: env.OWNER_PASSWORD,
+    isAdmin: true,
+  });
+  return true;
+}
+
 // Simple brute-force protection: too many failed logins for the same
 // login ID or from the same address locks that key out for a while.
 class LoginLimiter {
@@ -169,4 +183,4 @@ function createAuth(db, config) {
   return { loadUser, requireUser, requireAdmin, startSession, endSession, login };
 }
 
-module.exports = { createAuth, createUser, hashPassword, validatePassword, parseCookies };
+module.exports = { createAuth, createUser, createOwnerFromEnv, hashPassword, validatePassword, parseCookies };

@@ -24,7 +24,26 @@ Sign in, open **⋯ → Manage who can open the diary** and add the people you w
 Or with Docker: `docker compose up -d --build`, then
 `docker compose exec diary node scripts/create-user.js --admin yourname "Your Name"`.
 
-### Putting it online
+### Deploy on Render
+
+The repository has a `render.yaml` Blueprint at its root. It sets up the app with HTTPS, a persistent 1 GB disk at `/var/data` and the right settings.
+
+1. Sign in at [render.com](https://render.com) with GitHub and allow Render to see this repository.
+2. Click **New → Blueprint**, pick this repository and branch `master`.
+3. Render asks for three values. These become your first login:
+   - `OWNER_USERNAME`: your login ID (letters, numbers, `.`, `-`, `_`)
+   - `OWNER_PASSWORD`: at least 8 characters
+   - `OWNER_DISPLAY_NAME`: the name shown on your pages
+4. Click **Apply**. The first build takes a few minutes. Your diary is then at `https://my-diary-xxxx.onrender.com`, the address shown on the service page.
+5. Sign in, open **⋯ → Manage who can open the diary** and add the people you want to share with.
+
+Notes:
+- The Blueprint uses the paid **Starter** instance because free instances can't have a disk. Without a disk, every entry and photo would be wiped on each restart or deploy.
+- The owner settings are only used while the diary has no users. After you have signed in you can delete them in **Environment**, and change your password from the app's menu.
+- Every push to `master` redeploys automatically. Your data stays on the disk.
+- For an extra copy of your data, open the service's **Shell** tab and run `npm run backup`, or download your entries from the app's menu.
+
+### Putting it online elsewhere
 
 Put the diary behind HTTPS. Voice typing only works over `https://` (or on `localhost`), and HTTPS also protects passwords in transit. Any host that runs Node 18+ or Docker **and gives you a persistent disk** will work. Examples are Render or Railway with a disk, Fly.io with a volume, a small VPS, or a home server behind Caddy or Cloudflare Tunnel. Set:
 
@@ -37,6 +56,7 @@ Put the diary behind HTTPS. Voice typing only works over `https://` (or on `loca
 | `TRUST_PROXY` | `false` | Set to `true` behind a reverse proxy or load balancer. |
 | `SESSION_DAYS` | `30` | How long people stay signed in |
 | `MAX_UPLOAD_MB` | `15` | Size limit for each photo |
+| `OWNER_USERNAME`, `OWNER_PASSWORD`, `OWNER_DISPLAY_NAME` | | Creates the first owner login at startup, only when the diary has no users yet |
 
 ## Your data is safe across upgrades
 
