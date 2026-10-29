@@ -1,0 +1,11 @@
+services:
+  diary:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DIARY_MODE: shared        # or "private"
+      TRUST_PROXY: "true"       # set when running behind an HTTPS proxy
+    volumes:
+      - ./data:/data            # never delete this folder: it IS your diary

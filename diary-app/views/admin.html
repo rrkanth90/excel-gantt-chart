@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Diary · People</title>
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/diary.css">
+</head>
+<body class="desk">
+  <header class="topbar">
+    <a class="icon-btn" href="/" aria-label="Back to diary">‹</a>
+    <div class="topbar-title">Who can open the diary</div>
+    <span class="icon-btn" aria-hidden="true"></span>
+  </header>
+  <main class="notebook">
+    <article class="page admin-page">
+      <h2>Add a person</h2>
+      <form id="add-user" class="admin-form">
+        <label>Name shown on their pages <input name="displayName" maxlength="60" required></label>
+        <label>Login ID <input name="username" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._\-]{3,40}" required></label>
+        <label>Password (share it with them privately) <input name="password" type="text" minlength="8" autocomplete="new-password" required></label>
+        <label class="check"><input type="checkbox" name="isAdmin"> Can also manage people</label>
+        <p class="form-error" role="alert" hidden></p>
+        <button class="btn btn-primary" type="submit">Give access</button>
+      </form>
+
+      <h2>People with access</h2>
+      <ul id="user-list" class="user-list"></ul>
+    </article>
+  </main>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="module" src="/static/js/admin.js"></script>
+</body>
+</html>

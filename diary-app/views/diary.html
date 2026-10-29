@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3b2c24">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Diary</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/css/diary.css">
+</head>
+<body class="desk">
+  <header class="topbar">
+    <button class="icon-btn" id="index-btn" aria-label="Index of pages" title="Index of pages">☰</button>
+    <div class="topbar-title">My Diary</div>
+    <button class="icon-btn" id="menu-btn" aria-label="Menu" title="Menu" aria-haspopup="menu">⋯</button>
+  </header>
+
+  <main class="notebook">
+    <nav class="day-nav" aria-label="Change day">
+      <button class="nav-btn" id="prev-day" aria-label="Previous day">‹</button>
+      <label class="date-pick">
+        <span class="sr-only">Go to date</span>
+        <input type="date" id="date-input">
+      </label>
+      <button class="nav-btn today-btn" id="today-btn">Today</button>
+      <button class="nav-btn" id="next-day" aria-label="Next day">›</button>
+    </nav>
+
+    <article class="page" id="page">
+      <div class="page-head">
+        <div class="weekday" id="weekday"></div>
+        <div class="fulldate" id="fulldate"></div>
+      </div>
+
+      <section class="my-writing">
+        <label for="editor" class="sr-only">Today's entry</label>
+        <textarea id="editor" class="editor" placeholder="Dear diary…" spellcheck="true"></textarea>
+        <div class="interim" id="interim" aria-live="polite" hidden></div>
+        <div class="photos" id="my-photos"></div>
+      </section>
+
+      <section class="others" id="others" aria-label="Others who wrote on this day"></section>
+    </article>
+  </main>
+
+  <footer class="toolbar">
+    <button class="tool-btn" id="mic-btn" aria-pressed="false" title="Speak to write">
+      <span class="tool-icon" aria-hidden="true">🎤</span><span class="tool-label">Speak</span>
+    </button>
+    <label class="tool-btn" title="Add photos from this device">
+      <span class="tool-icon" aria-hidden="true">📷</span><span class="tool-label">Photo</span>
+      <input type="file" id="photo-input" accept="image/*" multiple hidden>
+    </label>
+    <div class="save-status" id="save-status" aria-live="polite">Saved</div>
+  </footer>
+
+  <!-- Menu -->
+  <dialog id="menu" class="sheet">
+    <form method="dialog" class="sheet-body">
+      <div class="sheet-title" id="menu-user"></div>
+      <button class="sheet-item" value="index">📖 Index of pages</button>
+      <button class="sheet-item" value="voice">🎙️ Voice language</button>
+      <button class="sheet-item" value="password">🔑 Change password</button>
+      <button class="sheet-item" value="export">⬇️ Download my entries</button>
+      <button class="sheet-item admin-only" value="admin" hidden>👥 Manage who can open the diary</button>
+      <button class="sheet-item" value="logout">🚪 Sign out</button>
+      <button class="sheet-item sheet-cancel" value="cancel">Close</button>
+    </form>
+  </dialog>
+
+  <!-- Index -->
+  <dialog id="index" class="sheet sheet-tall">
+    <div class="sheet-body">
+      <div class="sheet-title">Index</div>
+      <div id="index-list" class="index-list"></div>
+      <form method="dialog"><button class="sheet-item sheet-cancel">Close</button></form>
+    </div>
+  </dialog>
+
+  <!-- Change password -->
+  <dialog id="password-dialog" class="sheet">
+    <form class="sheet-body" id="password-form">
+      <div class="sheet-title">Change password</div>
+      <label>Current password <input type="password" name="currentPassword" autocomplete="current-password" required></label>
+      <label>New password <input type="password" name="newPassword" autocomplete="new-password" minlength="8" required></label>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="row">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Voice language -->
+  <dialog id="voice-dialog" class="sheet">
+    <form method="dialog" class="sheet-body">
+      <div class="sheet-title">Voice language</div>
+      <select id="voice-lang"></select>
+      <p class="hint">Say “new line”, “new paragraph”, “full stop”, “comma” or “question mark” while speaking in English.</p>
+      <button class="btn btn-primary">Done</button>
+    </form>
+  </dialog>
+
+  <!-- Conflict -->
+  <dialog id="conflict-dialog" class="sheet">
+    <form method="dialog" class="sheet-body">
+      <div class="sheet-title">This page changed somewhere else</div>
+      <p class="hint">You edited this page on another device or tab too. Choose what to keep. Nothing is lost: every saved version is kept on the server.</p>
+      <details><summary>Show the other version</summary><pre id="conflict-other" class="conflict-text"></pre></details>
+      <button class="btn btn-primary" value="both">Keep both (add mine below)</button>
+      <button class="btn" value="mine">Keep only what is on this screen</button>
+      <button class="btn" value="theirs">Use the other version</button>
+    </form>
+  </dialog>
+
+  <!-- Photo viewer -->
+  <dialog id="viewer" class="viewer">
+    <form method="dialog"><button class="viewer-close" aria-label="Close">✕</button></form>
+    <img id="viewer-img" alt="">
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script type="module" src="/static/js/diary.js"></script>
+</body>
+</html>
