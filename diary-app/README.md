@@ -24,6 +24,37 @@ Sign in, open **⋯ → Manage who can open the diary** and add the people you w
 Or with Docker: `docker compose up -d --build`, then
 `docker compose exec diary node scripts/create-user.js --admin yourname "Your Name"`.
 
+### Deploy on Fly.io (cheapest)
+
+`fly.toml` runs the diary on the smallest Fly.io server (256 MB) with a 1 GB volume for your data. The server sleeps when nobody is using the diary and wakes in a couple of seconds on the next visit, so you mostly pay for storage.
+
+1. Install `flyctl` ([instructions](https://fly.io/docs/flyctl/install/)) and sign up or sign in: `fly auth signup` or `fly auth login`. Fly.io asks for a card.
+2. Get the code and go to the app folder:
+   ```bash
+   git clone https://github.com/rrkanth90/excel-gantt-chart.git
+   cd excel-gantt-chart/diary-app
+   ```
+3. Create the app from the included config, without deploying yet:
+   ```bash
+   fly launch --copy-config --no-deploy
+   ```
+   Pick a unique app name when asked, and say no to adding databases or Redis. If you want a different region from `bom` (Mumbai), set it in `fly.toml` first; `fly platform regions` lists them.
+4. Create the storage volume in the same region:
+   ```bash
+   fly volumes create diary_data --size 1 --region bom
+   ```
+5. Set your first login (only used while the diary has no users):
+   ```bash
+   fly secrets set OWNER_USERNAME=yourname OWNER_PASSWORD='a-strong-password' OWNER_DISPLAY_NAME='Your Name'
+   ```
+6. Deploy. Keep it to **one** server, because the data lives on one volume:
+   ```bash
+   fly deploy --ha=false
+   ```
+7. Open `https://<your-app-name>.fly.dev`, sign in, and add your family from **⋯ → Manage who can open the diary**.
+
+Later updates: pull the new code and run `fly deploy` again. Your data stays on the volume. For an extra copy, run `fly ssh console -C "node scripts/backup.js"`, and take a volume snapshot with `fly volumes snapshots create <volume-id>` (`fly volumes list` shows the id).
+
 ### Deploy on Render
 
 The repository has a `render.yaml` Blueprint at its root. It sets up the app with HTTPS, a persistent 1 GB disk at `/var/data` and the right settings.
