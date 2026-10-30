@@ -1,8 +1,8 @@
 # Fly.io config for the diary (see README, "Deploy on Fly.io").
 # `app` must be unique across Fly.io: `fly launch` lets you change it.
-app = "my-diary"
+app = "adiary"
 # Pick the region closest to you: `fly platform regions` lists them.
-primary_region = "bom"
+primary_region = "sjc"
 
 [build]
   dockerfile = "Dockerfile"
