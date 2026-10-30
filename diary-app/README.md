@@ -38,10 +38,10 @@ Or with Docker: `docker compose up -d --build`, then
    ```bash
    fly launch --copy-config --no-deploy
    ```
-   Pick a unique app name when asked, and say no to adding databases or Redis. If you want a different region from `bom` (Mumbai), set it in `fly.toml` first; `fly platform regions` lists them.
+   Pick a unique app name when asked, and say no to adding databases or Redis. If you want a different region from `sjc` (San Jose), set it in `fly.toml` first; `fly platform regions` lists them.
 4. Create the storage volume in the same region:
    ```bash
-   fly volumes create diary_data --size 1 --region bom
+   fly volumes create diary_data --size 1 --region sjc
    ```
 5. Set your first login (only used while the diary has no users):
    ```bash
