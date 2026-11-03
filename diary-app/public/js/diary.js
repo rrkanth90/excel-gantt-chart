@@ -182,29 +182,48 @@ function renderHead(date) {
   document.title = `Diary · ${fullFmt.format(d)}`;
 }
 
-function photoCard(img, { mine }) {
+// `author` is set for another writer's photo, which only owners may remove.
+function photoCard(img, { removable, author = null }) {
   const image = el('img', { src: img.url, alt: img.name || 'Photo', loading: 'lazy', decoding: 'async' });
   image.addEventListener('click', () => openViewer(img.url));
   const card = el('figure', { class: 'photo', 'data-id': img.id }, image);
-  if (mine) {
+  if (removable) {
     card.append(el('button', {
       class: 'remove', type: 'button', 'aria-label': 'Remove photo', title: 'Remove photo',
-      onclick: () => removePhoto(img.id, card),
+      onclick: () => removePhoto(img.id, card, author),
     }, '✕'));
   }
   return card;
 }
 
 function renderMyPhotos(images) {
-  $('my-photos').replaceChildren(...images.map((img) => photoCard(img, { mine: true })));
+  $('my-photos').replaceChildren(...images.map((img) => photoCard(img, { removable: true })));
 }
 
 function renderOthers(others) {
-  $('others').replaceChildren(...others.map((o) => el('div', { class: 'other' },
-    el('div', { class: 'other-author' }, `✎ ${o.author}`),
-    o.entry && o.entry.content ? el('div', { class: 'other-text' }, o.entry.content) : null,
-    o.images.length ? el('div', { class: 'photos' }, o.images.map((img) => photoCard(img, { mine: false }))) : null,
-  )));
+  const owner = state.me.isAdmin;
+  $('others').replaceChildren(...others.map((o) => {
+    const hasText = !!(o.entry && o.entry.content);
+    return el('div', { class: 'other' },
+      el('div', { class: 'other-author' }, `✎ ${o.author}`,
+        owner && hasText ? el('button', {
+          class: 'other-remove', type: 'button', title: `Remove what ${o.author} wrote on this day`,
+          onclick: () => removeOthersWriting(o),
+        }, 'Remove') : null),
+      hasText ? el('div', { class: 'other-text' }, o.entry.content) : null,
+      o.images.length ? el('div', { class: 'photos' },
+        o.images.map((img) => photoCard(img, { removable: owner, author: o.author }))) : null,
+    );
+  }));
+}
+
+async function removeOthersWriting(o) {
+  if (!confirm(`Remove what ${o.author} wrote on this day? Their photos stay unless you remove them too. The text is kept in the diary's history on the server.`)) return;
+  try {
+    await api(`/api/admin/days/${state.date}/entries/${o.userId}`, { method: 'DELETE' });
+    toast(`Removed ${o.author}'s writing`);
+    refresh();
+  } catch (err) { toast(err.message); }
 }
 
 async function openDay(date, { direction = 0, push = true } = {}) {
@@ -367,11 +386,15 @@ $('photo-input').addEventListener('change', async (e) => {
   }
 });
 
-async function removePhoto(id, card) {
-  if (!confirm('Remove this photo from the page?')) return;
+async function removePhoto(id, card, author) {
+  const question = author
+    ? `Remove this photo from ${author}'s page? This can't be undone.`
+    : 'Remove this photo from the page?';
+  if (!confirm(question)) return;
   try {
     await api(`/api/images/${id}`, { method: 'DELETE' });
     card.remove();
+    if (author) refresh();
   } catch (err) { toast(err.message); }
 }
 

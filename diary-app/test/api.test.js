@@ -206,3 +206,45 @@ test('owner can be created from environment variables only on an empty diary', a
   assert.equal((await owner('/api/me')).json.user.isAdmin, true);
   await srv.close();
 });
+
+test("owners can remove other writers' text and photos; others cannot", async () => {
+  const dir = tmp();
+  const srv = await start(dir);
+  createUser(srv.db, { username: 'owner', displayName: 'Owner', password: 'owner-pass-1', isAdmin: true });
+  createUser(srv.db, { username: 'bob', displayName: 'Bob', password: 'bob-pass-1' });
+  createUser(srv.db, { username: 'carol', displayName: 'Carol', password: 'carol-pass-1' });
+  const owner = client(srv.base);
+  const bob = client(srv.base);
+  const carol = client(srv.base);
+  await owner('/api/login', { method: 'POST', body: { username: 'owner', password: 'owner-pass-1' } });
+  await bob('/api/login', { method: 'POST', body: { username: 'bob', password: 'bob-pass-1' } });
+  await carol('/api/login', { method: 'POST', body: { username: 'carol', password: 'carol-pass-1' } });
+
+  const day = '/api/days/2026-11-03';
+  await bob(`${day}/entry`, { method: 'PUT', body: { content: 'Bob was here', version: 0 } });
+  const form = new FormData();
+  form.append('images', new Blob([PNG], { type: 'image/png' }), 'dot.png');
+  const photoUrl = (await bob(`${day}/images`, { method: 'POST', form })).json.images[0].url;
+
+  const bobOnOwnerPage = (await owner(day)).json.others.find((o) => o.author === 'Bob');
+  const removeUrl = `/api/admin/days/2026-11-03/entries/${bobOnOwnerPage.userId}`;
+
+  // A writer who is not an owner can't remove someone else's text or photos.
+  assert.equal((await carol(removeUrl, { method: 'DELETE' })).status, 403);
+  assert.equal((await carol(photoUrl, { method: 'DELETE' })).status, 404);
+
+  assert.equal((await owner(removeUrl, { method: 'DELETE' })).status, 200);
+  assert.equal((await owner(photoUrl, { method: 'DELETE' })).status, 200);
+  assert.equal((await owner(day)).json.others.length, 0);
+
+  // The removed text is kept in the history, and Bob's next save is told the page changed.
+  const history = srv.db
+    .prepare("SELECT r.content FROM entry_revisions r JOIN entries e ON e.id = r.entry_id JOIN users u ON u.id = e.user_id WHERE u.username = 'bob' ORDER BY r.version")
+    .all()
+    .map((r) => r.content);
+  assert.deepEqual(history, ['Bob was here', '']);
+  assert.equal((await bob(`${day}/entry`, { method: 'PUT', body: { content: 'stale', version: 1 } })).status, 409);
+
+  assert.equal((await owner('/api/admin/days/2026-13-01/entries/1', { method: 'DELETE' })).status, 400);
+  await srv.close();
+});
