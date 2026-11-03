@@ -1,4 +1,5 @@
-# Fly.io config for the diary (see README, "Deploy on Fly.io").
+# Fly.io config for the diary in diary-app/ (see diary-app/README.md, "Deploy on Fly.io").
+# It lives at the repository root because Fly.io's "Launch from GitHub" looks here.
 # `app` must be unique across Fly.io: `fly launch` lets you change it.
 app = "adiary"
 # Pick the region closest to you: `fly platform regions` lists them.

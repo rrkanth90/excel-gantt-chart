@@ -26,13 +26,17 @@ Or with Docker: `docker compose up -d --build`, then
 
 ### Deploy on Fly.io (cheapest)
 
-`fly.toml` runs the diary on the smallest Fly.io server (256 MB) with a 1 GB volume for your data. The server sleeps when nobody is using the diary and wakes in a couple of seconds on the next visit, so you mostly pay for storage.
+`fly.toml` and `Dockerfile` at the **repository root** run the diary on the smallest Fly.io server (256 MB) with a 1 GB volume for your data. They sit at the root because Fly.io's website launcher only looks there. The server sleeps when nobody is using the diary and wakes in a couple of seconds on the next visit, so you mostly pay for storage.
+
+**From the Fly.io website:** use the option to launch an app from GitHub, pick this repository, and keep the settings from `fly.toml`. Add `OWNER_USERNAME`, `OWNER_PASSWORD` and `OWNER_DISPLAY_NAME` as secrets. Make sure the app gets one machine and a `diary_data` volume in the same region, then follow steps 4–7 below from a terminal if anything is missing.
+
+**From a terminal:**
 
 1. Install `flyctl` ([instructions](https://fly.io/docs/flyctl/install/)) and sign up or sign in: `fly auth signup` or `fly auth login`. Fly.io asks for a card.
-2. Get the code and go to the app folder:
+2. Get the code and go to the **top** folder of the repository (not `diary-app`):
    ```bash
    git clone https://github.com/rrkanth90/excel-gantt-chart.git
-   cd excel-gantt-chart/diary-app
+   cd excel-gantt-chart
    ```
 3. Create the app from the included config, without deploying yet:
    ```bash
@@ -53,7 +57,9 @@ Or with Docker: `docker compose up -d --build`, then
    ```
 7. Open `https://<your-app-name>.fly.dev`, sign in, and add your family from **⋯ → Manage who can open the diary**.
 
-Later updates: pull the new code and run `fly deploy` again. Your data stays on the volume. For an extra copy, run `fly ssh console -C "node scripts/backup.js"`, and take a volume snapshot with `fly volumes snapshots create <volume-id>` (`fly volumes list` shows the id).
+If `https://<your-app-name>.fly.dev` says the site can't be found, the app has no public address yet: run `fly ips list`, and if it is empty, `fly ips allocate-v6` and `fly ips allocate-v4 --shared`.
+
+Later updates: pull the new code and run `fly deploy` from the top folder again. Your data stays on the volume. For an extra copy, run `fly ssh console -C "node scripts/backup.js"`, and take a volume snapshot with `fly volumes snapshots create <volume-id>` (`fly volumes list` shows the id).
 
 ### Deploy on Render
 
