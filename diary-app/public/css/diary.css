@@ -148,7 +148,15 @@ body { font-family: var(--ui-font); color: #222; -webkit-text-size-adjust: 100%;
 
 /* ---------- other writers ---------- */
 .other { margin-top: calc(var(--line) * 1); padding-top: 6px; border-top: 1px dashed #cbbf9f; }
-.other-author { font-family: var(--hand); font-weight: 700; color: var(--accent); line-height: var(--line); font-size: 1.1rem; }
+.other-author {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-family: var(--hand); font-weight: 700; color: var(--accent); line-height: var(--line); font-size: 1.1rem;
+}
+.other-remove {
+  font: inherit; font-family: var(--ui-font); font-size: .82rem; font-weight: 500; color: #8f1d12;
+  background: transparent; border: 1px solid #d9b8ae; border-radius: 14px; padding: 2px 12px; min-height: 30px; cursor: pointer;
+}
+.other-remove:hover, .other-remove:focus-visible { background: #f6e3de; }
 .other-text {
   font-family: var(--hand); font-size: 1.2rem; line-height: var(--line); color: var(--ink-other);
   white-space: pre-wrap; overflow-wrap: anywhere; min-height: var(--line);

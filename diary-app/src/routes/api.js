@@ -127,6 +127,7 @@ function createApiRouter({ db, config, auth }) {
       const entryStmt = db.prepare('SELECT * FROM entries WHERE user_id = ? AND entry_date = ?');
       const imgStmt = db.prepare('SELECT * FROM images WHERE user_id = ? AND entry_date = ? ORDER BY id');
       others = writers.map((w) => ({
+        userId: w.id,
         author: w.display_name,
         entry: entryJson(entryStmt.get(w.id, date)),
         images: imgStmt.all(w.id, date).map(imageJson),
@@ -218,8 +219,11 @@ function createApiRouter({ db, config, auth }) {
     });
   });
 
+  // Writers can remove their own photos; owners can remove anyone's.
   router.delete('/images/:id', (req, res) => {
-    const row = db.prepare('SELECT * FROM images WHERE id = ? AND user_id = ?').get(Number(req.params.id), req.user.id);
+    const row = db
+      .prepare('SELECT * FROM images WHERE id = ? AND (user_id = ? OR ?)')
+      .get(Number(req.params.id), req.user.id, req.user.isAdmin ? 1 : 0);
     if (!row) return res.status(404).json({ error: 'Photo not found.' });
     db.prepare('DELETE FROM images WHERE id = ?').run(row.id);
     fs.rm(path.join(config.uploadDir, row.stored_name), { force: true }, () => {});
@@ -312,6 +316,25 @@ function createApiRouter({ db, config, auth }) {
     })();
 
     res.json({ user: userJson(db.prepare('SELECT * FROM users WHERE id = ?').get(id)) });
+  });
+
+  // Owners can clear what someone else wrote on a day. The page is emptied
+  // like a normal save, so the removed text stays in entry_revisions.
+  admin.delete('/days/:date/entries/:userId', (req, res) => {
+    if (!isValidDate(req.params.date)) return res.status(400).json({ error: 'Invalid date.' });
+    const entry = db
+      .prepare('SELECT * FROM entries WHERE user_id = ? AND entry_date = ?')
+      .get(Number(req.params.userId), req.params.date);
+    if (!entry) return res.status(404).json({ error: 'Nothing written on this day.' });
+    if (entry.content !== '') {
+      db.transaction(() => {
+        db.prepare(
+          "UPDATE entries SET content = '', version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+        ).run(entry.id);
+        db.prepare("INSERT INTO entry_revisions (entry_id, version, content) VALUES (?, ?, '')").run(entry.id, entry.version + 1);
+      })();
+    }
+    res.json({ ok: true });
   });
 
   router.use('/admin', admin);
