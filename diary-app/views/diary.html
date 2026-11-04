@@ -64,6 +64,7 @@
       <button class="sheet-item" value="index">📖 Index of pages</button>
       <button class="sheet-item" value="voice">🎙️ Voice language</button>
       <button class="sheet-item" value="password">🔑 Change password</button>
+      <button class="sheet-item" value="pdf">📄 Save pages as PDF</button>
       <button class="sheet-item" value="export">⬇️ Download my entries</button>
       <button class="sheet-item admin-only" value="admin" hidden>👥 Manage who can open the diary</button>
       <button class="sheet-item" value="logout">🚪 Sign out</button>
@@ -90,6 +91,29 @@
       <div class="row">
         <button type="button" class="btn" data-close>Cancel</button>
         <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Save as PDF -->
+  <dialog id="pdf-dialog" class="sheet">
+    <form class="sheet-body" id="pdf-form">
+      <div class="sheet-title">Save pages as PDF</div>
+      <div class="chip-row" role="group" aria-label="Quick ranges">
+        <button type="button" class="chip" data-range="day">This page</button>
+        <button type="button" class="chip" data-range="month">This month</button>
+        <button type="button" class="chip" data-range="year">This year</button>
+      </div>
+      <div class="date-row">
+        <label>From <input type="date" name="from" required></label>
+        <label>To <input type="date" name="to" required></label>
+      </div>
+      <label class="check shared-only"><input type="checkbox" name="everyone" checked> Include what others wrote</label>
+      <p class="hint">Each day becomes its own page. Up to one year at a time.</p>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="row">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Open pages</button>
       </div>
     </form>
   </dialog>

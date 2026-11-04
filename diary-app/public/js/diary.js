@@ -457,6 +457,7 @@ menu.addEventListener('close', async () => {
     case 'index': return openIndex();
     case 'voice': return $('voice-dialog').showModal();
     case 'password': return $('password-dialog').showModal();
+    case 'pdf': return openPdfDialog();
     case 'export': location.href = '/api/export'; return;
     case 'admin': await save(); location.href = '/admin'; return;
     case 'logout':
@@ -483,6 +484,53 @@ pwForm.addEventListener('submit', async (e) => {
     err.textContent = ex.message;
     err.hidden = false;
   }
+});
+
+// ---------------------------------------------------------------- save as PDF
+
+const pdfDialog = $('pdf-dialog');
+const pdfForm = $('pdf-form');
+
+function setPdfRange(kind) {
+  const d = parseDate(state.date);
+  let from = state.date;
+  let to = state.date;
+  if (kind === 'month') {
+    from = localDate(new Date(d.getFullYear(), d.getMonth(), 1));
+    to = localDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  } else if (kind === 'year') {
+    from = `${d.getFullYear()}-01-01`;
+    to = `${d.getFullYear()}-12-31`;
+  }
+  pdfForm.elements.from.value = from;
+  pdfForm.elements.to.value = to;
+}
+
+function openPdfDialog() {
+  setPdfRange('month');
+  pdfForm.querySelector('.form-error').hidden = true;
+  pdfForm.querySelector('.shared-only').hidden = state.diaryMode !== 'shared';
+  pdfDialog.showModal();
+}
+
+pdfForm.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => setPdfRange(b.dataset.range)));
+pdfForm.querySelector('[data-close]').addEventListener('click', () => pdfDialog.close());
+pdfForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const { from, to, everyone } = pdfForm.elements;
+  const error = pdfForm.querySelector('.form-error');
+  if (from.value > to.value) {
+    error.textContent = 'The start date must be on or before the end date.';
+    error.hidden = false;
+    return;
+  }
+  await save();
+  const query = new URLSearchParams({
+    from: from.value,
+    to: to.value,
+    everyone: state.diaryMode === 'shared' && everyone.checked ? '1' : '0',
+  });
+  location.href = `/print?${query}`;
 });
 
 async function openIndex() {

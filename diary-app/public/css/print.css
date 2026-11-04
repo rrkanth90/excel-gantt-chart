@@ -1,0 +1,53 @@
+/* Printable notebook pages: what "Save as PDF" turns into a file. */
+.print-body {
+  margin: 0; min-height: 100vh;
+  background: radial-gradient(ellipse at top, #4a372d, var(--desk) 55%, var(--desk-2));
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.print-bar {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(8px + env(safe-area-inset-top)) 16px 8px; background: rgba(42, 31, 25, .95); color: #f3e7d3;
+}
+.print-back { color: #f3e7d3; text-decoration: none; font-size: 1rem; padding: 10px 4px; }
+.print-hint { max-width: 760px; margin: 12px auto 0; padding: 0 16px; color: #e9dcc6; font-size: .9rem; line-height: 1.5; }
+.print-book { max-width: 760px; margin: 0 auto; padding: 12px 16px 40px; display: grid; gap: 18px; }
+
+.print-sheet {
+  background: var(--paper); border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  padding: 28px 28px 32px 36px; color: var(--ink);
+}
+.print-cover { display: grid; place-items: center; text-align: center; min-height: 340px; }
+.print-cover h1 { font-family: var(--hand); color: var(--accent); font-size: 2.6rem; margin: 0; }
+.print-cover p { margin: 6px 0 0; color: var(--pencil); font-family: var(--hand); font-size: 1.15rem; }
+
+.print-date { font-family: var(--hand); color: var(--accent); border-bottom: 2px solid var(--rule); padding-bottom: 4px; margin-bottom: 10px; }
+.print-date .wd { font-size: 1.6rem; font-weight: 700; line-height: 1.15; }
+.print-date .dt { color: var(--pencil); font-size: 1rem; }
+
+.print-writer { border-left: 2px solid var(--margin-rule); padding-left: 14px; margin-top: 14px; }
+.print-author { font-family: var(--hand); font-weight: 700; color: var(--accent); font-size: 1.05rem; line-height: 28px; }
+.print-text {
+  font-family: var(--hand); font-size: 1.05rem; line-height: 28px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule) 27px, var(--rule) 28px);
+}
+.print-writer:not(.mine) .print-text { color: var(--ink-other); }
+.print-photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.print-photos figure { margin: 0; background: #fff; padding: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); break-inside: avoid; }
+.print-photos img { display: block; width: 100%; max-height: 260px; object-fit: contain; }
+.print-empty { color: #e9dcc6; text-align: center; padding: 40px 0; }
+
+@page { size: A4; margin: 14mm 14mm 16mm 16mm; }
+@media print {
+  .no-print { display: none !important; }
+  .print-body { background: #fff; min-height: 0; }
+  .print-book { max-width: none; padding: 0; display: block; }
+  .print-sheet { box-shadow: none; border-radius: 0; padding: 0; background: transparent; }
+  /* Every day starts on a fresh page, like the notebook. */
+  .print-sheet + .print-sheet { break-before: page; }
+  .print-cover { min-height: 240mm; }
+  .print-photos img { max-height: 90mm; }
+}
+@media (max-width: 600px) {
+  .print-sheet { padding: 20px 16px 24px 20px; }
+  .print-photos { gap: 8px; }
+}

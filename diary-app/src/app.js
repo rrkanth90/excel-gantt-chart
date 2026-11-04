@@ -61,6 +61,7 @@ function createApp(overrides = {}) {
   };
   app.get('/', page('diary.html'));
   app.get('/admin', page('admin.html', { admin: true }));
+  app.get('/print', page('print.html'));
   app.get('/login', (req, res) => {
     if (req.user) return res.redirect('/');
     res.sendFile(path.join(VIEWS, 'login.html'));

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Diary · Save as PDF</title>
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/diary.css">
+  <link rel="stylesheet" href="/static/css/print.css">
+</head>
+<body class="print-body">
+  <header class="print-bar no-print">
+    <a class="print-back" href="/">‹ Back to diary</a>
+    <button class="btn btn-primary" id="save-pdf" type="button" disabled>Preparing…</button>
+  </header>
+  <p class="print-hint no-print" id="print-hint">
+    Tap <strong>Save as PDF</strong>, then pick <strong>Save as PDF</strong> as the printer.
+    On an iPhone or iPad, use the Share button in the print screen and choose <strong>Save to Files</strong>.
+  </p>
+  <main class="print-book" id="book"></main>
+  <script type="module" src="/static/js/print.js"></script>
+</body>
+</html>

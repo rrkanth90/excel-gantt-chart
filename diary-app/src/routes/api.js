@@ -245,6 +245,58 @@ function createApiRouter({ db, config, auth }) {
     res.json({ dates: rows.map((r) => ({ date: r.date, mine: !!r.mine })) });
   });
 
+  // All pages in a date range in one go, for the printable / PDF view.
+  // Writers see their own pages; in shared mode they can add everyone's.
+  const MAX_PRINT_DAYS = 366;
+  router.get('/pages', (req, res) => {
+    const { from, to } = req.query;
+    if (!isValidDate(from) || !isValidDate(to) || from > to) {
+      return res.status(400).json({ error: 'Choose a start date that is on or before the end date.' });
+    }
+    if ((Date.parse(to) - Date.parse(from)) / 86400000 + 1 > MAX_PRINT_DAYS) {
+      return res.status(400).json({ error: 'Choose at most one year at a time.' });
+    }
+    const everyone = shared && req.query.everyone === '1';
+    const who = everyone ? '' : 'AND x.user_id = @me';
+    const params = { from, to, me: req.user.id };
+    const entries = db
+      .prepare(
+        `SELECT x.entry_date, x.user_id, x.content, u.display_name FROM entries x JOIN users u ON u.id = x.user_id
+         WHERE x.entry_date BETWEEN @from AND @to AND x.content != '' ${who}`,
+      )
+      .all(params);
+    const images = db
+      .prepare(
+        `SELECT x.*, u.display_name FROM images x JOIN users u ON u.id = x.user_id
+         WHERE x.entry_date BETWEEN @from AND @to ${who} ORDER BY x.id`,
+      )
+      .all(params);
+
+    const days = new Map();
+    const writer = (date, userId, author) => {
+      if (!days.has(date)) days.set(date, new Map());
+      const writers = days.get(date);
+      if (!writers.has(userId)) {
+        writers.set(userId, { author, mine: userId === req.user.id, content: '', images: [] });
+      }
+      return writers.get(userId);
+    };
+    for (const e of entries) writer(e.entry_date, e.user_id, e.display_name).content = e.content;
+    for (const i of images) writer(i.entry_date, i.user_id, i.display_name).images.push(imageJson(i));
+
+    res.json({
+      from,
+      to,
+      days: [...days]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([date, writers]) => ({
+          date,
+          // My page first, then the others by name, like the day view.
+          writers: [...writers.values()].sort((a, b) => (b.mine - a.mine) || a.author.localeCompare(b.author)),
+        })),
+    });
+  });
+
   // Download everything you have written as JSON (your data is always yours).
   router.get('/export', (req, res) => {
     const entries = db
