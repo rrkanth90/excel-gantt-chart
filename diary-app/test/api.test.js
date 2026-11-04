@@ -248,3 +248,44 @@ test("owners can remove other writers' text and photos; others cannot", async ()
   assert.equal((await owner('/api/admin/days/2026-13-01/entries/1', { method: 'DELETE' })).status, 400);
   await srv.close();
 });
+
+test('pages for the PDF view come back in date order with the right writers', async () => {
+  const dir = tmp();
+  const srv = await start(dir);
+  createUser(srv.db, { username: 'alice', displayName: 'Alice', password: 'alice-pass' });
+  createUser(srv.db, { username: 'bob', displayName: 'Bob', password: 'bob-pass-1' });
+  const alice = client(srv.base);
+  const bob = client(srv.base);
+  await alice('/api/login', { method: 'POST', body: { username: 'alice', password: 'alice-pass' } });
+  await bob('/api/login', { method: 'POST', body: { username: 'bob', password: 'bob-pass-1' } });
+
+  await alice('/api/days/2026-11-02/entry', { method: 'PUT', body: { content: 'Alice day two', version: 0 } });
+  await bob('/api/days/2026-11-02/entry', { method: 'PUT', body: { content: 'Bob day two', version: 0 } });
+  await bob('/api/days/2026-11-01/entry', { method: 'PUT', body: { content: 'Bob day one', version: 0 } });
+  await alice('/api/days/2026-12-01/entry', { method: 'PUT', body: { content: 'Outside range', version: 0 } });
+  const form = new FormData();
+  form.append('images', new Blob([PNG], { type: 'image/png' }), 'dot.png');
+  await alice('/api/days/2026-11-03/images', { method: 'POST', form });
+
+  const mine = (await alice('/api/pages?from=2026-11-01&to=2026-11-30&everyone=0')).json;
+  assert.deepEqual(mine.days.map((d) => d.date), ['2026-11-02', '2026-11-03']);
+  assert.equal(mine.days[1].writers[0].images.length, 1);
+
+  const all = (await alice('/api/pages?from=2026-11-01&to=2026-11-30&everyone=1')).json;
+  assert.deepEqual(all.days.map((d) => d.date), ['2026-11-01', '2026-11-02', '2026-11-03']);
+  assert.deepEqual(all.days[1].writers.map((w) => [w.author, w.mine]), [['Alice', true], ['Bob', false]]);
+
+  assert.equal((await alice('/api/pages?from=2026-11-30&to=2026-11-01')).status, 400);
+  assert.equal((await alice('/api/pages?from=2025-01-01&to=2026-11-30')).status, 400);
+  assert.equal((await alice('/api/pages?from=nope&to=2026-11-30')).status, 400);
+  assert.equal((await client(srv.base)('/api/pages?from=2026-11-01&to=2026-11-30')).status, 401);
+  await srv.close();
+
+  // Private mode ignores "everyone".
+  const priv = await start(dir, { diaryMode: 'private' });
+  const a2 = client(priv.base);
+  await a2('/api/login', { method: 'POST', body: { username: 'alice', password: 'alice-pass' } });
+  const privPages = (await a2('/api/pages?from=2026-11-01&to=2026-11-30&everyone=1')).json;
+  assert.deepEqual(privPages.days.map((d) => d.date), ['2026-11-02', '2026-11-03']);
+  await priv.close();
+});

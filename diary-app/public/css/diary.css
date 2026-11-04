@@ -211,6 +211,19 @@ input:not([type=checkbox]):not([type=date]), select {
   padding: 10px 12px; border-radius: 8px; border: 1px solid #cbbf9f; background: #fff; color: #222; min-height: 44px;
 }
 .row { display: flex; gap: 10px; justify-content: flex-end; }
+.sheet label.check { flex-direction: row; align-items: center; gap: 8px; font-size: .95rem; }
+.date-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.date-row label { min-width: 0; }
+.date-row input {
+  font: inherit; font-size: 16px; min-height: 44px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid #cbbf9f; background: #fff; color: #222; width: 100%; min-width: 0;
+}
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #cbbf9f; background: #fff;
+  font: inherit; font-size: .9rem; cursor: pointer; color: #222;
+}
+.chip:hover, .chip:focus-visible { border-color: var(--accent); color: var(--accent); }
 .btn {
   min-height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid #cbbf9f; background: #fff;
   font: inherit; cursor: pointer; color: #222;
