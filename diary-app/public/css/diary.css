@@ -16,6 +16,7 @@
   --margin-rule: #e5a3a3;
   --ink: #1f2d6b;
   --ink-other: #2f5a3a;
+  --highlight: #fbe58a;
   --pencil: #6b6457;
   --desk: #3b2c24;
   --desk-2: #2a1f19;
@@ -101,23 +102,57 @@ body { font-family: var(--ui-font); color: #222; -webkit-text-size-adjust: 100%;
 .weekday { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
 .fulldate { font-size: 1.1rem; color: var(--pencil); }
 
-.ruled {
-  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--line) - 1px),
-    var(--rule) calc(var(--line) - 1px), var(--rule) var(--line));
-  background-attachment: local;
+/* ---------- theme of the day ---------- */
+.day-theme { padding: 12px 0 2px; }
+.theme-label {
+  display: block; font-family: var(--ui-font); font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent);
+}
+.theme-show { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.theme-show .theme-label { flex-basis: 100%; }
+/* A highlighter stroke behind the words. */
+.theme-text {
+  font-family: var(--hand); font-size: 1.35rem; font-weight: 700; color: var(--ink); line-height: 1.45;
+  background: linear-gradient(transparent 45%, var(--highlight) 45%, var(--highlight) 92%, transparent 92%);
+  padding: 0 4px; overflow-wrap: anywhere; min-width: 0;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.theme-edit, .theme-add, .write-btn {
+  font: inherit; font-family: var(--ui-font); cursor: pointer; background: transparent; color: var(--accent);
+}
+.theme-edit { font-size: .82rem; border: 0; padding: 4px 6px; text-decoration: underline; }
+.theme-add {
+  font-size: .9rem; border: 1px dashed #d4c39c; border-radius: 16px; padding: 4px 12px; min-height: 34px;
+}
+.theme-add:hover, .theme-add:focus-visible, .write-btn:hover, .write-btn:focus-visible { background: rgba(138,75,45,.08); }
+.theme-form { display: grid; gap: 8px; }
+.theme-form input { width: 100%; font-family: var(--hand); font-size: 1.2rem; }
+.theme-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- entries: plain writing, the same for everyone ---------- */
+.entries { display: flex; flex-direction: column; }
+.entry { padding: 14px 0 6px; }
+.entries > .entry:not([hidden]) ~ .entry { border-top: 1px dashed #d8ccaf; }
+.entry-author {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-family: var(--hand); font-weight: 700; color: var(--accent); font-size: 1.1rem; line-height: 1.6;
+}
+.entry-text, .editor {
+  font-family: var(--hand); font-size: 1.2rem; line-height: 1.6; color: var(--ink);
+  white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .editor {
-  display: block; width: 100%; min-height: calc(var(--line) * 14);
-  border: 0; outline: 0; resize: none; overflow: hidden;
-  padding: 0; margin: 0;
-  font-family: var(--hand); font-size: 1.25rem; line-height: var(--line); color: var(--ink);
-  background-color: transparent;
-  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--line) - 1px),
-    var(--rule) calc(var(--line) - 1px), var(--rule) var(--line));
-  background-attachment: local;
-  caret-color: var(--ink);
+  display: block; width: 100%; min-height: calc(1.2rem * 1.6 * 2);
+  border: 0; outline: 0; resize: none; overflow: hidden; padding: 4px 6px; margin: 0 -6px;
+  width: calc(100% + 12px); border-radius: 6px; background: transparent; caret-color: var(--ink);
 }
-.editor::placeholder { color: #a9a39a; }
+/* A faint tint shows where you're typing, without any lines. */
+.editor:focus { background: rgba(138, 75, 45, .05); }
+.photos:empty { display: none; }
+.write-btn {
+  align-self: flex-start; margin-top: 16px; font-size: 1rem; min-height: 44px; padding: 0 18px;
+  border: 1px solid #d4c39c; border-radius: 22px;
+}
 .interim {
   font-family: var(--hand); font-size: 1.15rem; line-height: var(--line); color: var(--pencil);
   font-style: italic; opacity: .85; padding: 0 4px; border-left: 3px solid var(--margin-rule);
@@ -146,21 +181,12 @@ body { font-family: var(--ui-font); color: #222; -webkit-text-size-adjust: 100%;
   font-family: var(--hand); font-size: .9rem; color: var(--pencil);
 }
 
-/* ---------- other writers ---------- */
-.other { margin-top: calc(var(--line) * 1); padding-top: 6px; border-top: 1px dashed #cbbf9f; }
-.other-author {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-family: var(--hand); font-weight: 700; color: var(--accent); line-height: var(--line); font-size: 1.1rem;
-}
+/* Owners' button for removing someone else's writing. */
 .other-remove {
   font: inherit; font-family: var(--ui-font); font-size: .82rem; font-weight: 500; color: #8f1d12;
   background: transparent; border: 1px solid #d9b8ae; border-radius: 14px; padding: 2px 12px; min-height: 30px; cursor: pointer;
 }
 .other-remove:hover, .other-remove:focus-visible { background: #f6e3de; }
-.other-text {
-  font-family: var(--hand); font-size: 1.2rem; line-height: var(--line); color: var(--ink-other);
-  white-space: pre-wrap; overflow-wrap: anywhere; min-height: var(--line);
-}
 
 /* ---------- page turning ---------- */
 @keyframes turn-next { from { transform: perspective(1400px) rotateY(-14deg) translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -302,7 +328,7 @@ input:not([type=checkbox]):not([type=date]), select {
   .page { padding-right: 12px; border-radius: 3px 8px 8px 3px; }
   .page::after { left: 6px; width: 14px; background-size: 14px 90px; background-image: radial-gradient(circle at 7px 50%, var(--desk-2) 4px, #c9bc9e 5px, transparent 6px); }
   .weekday { font-size: 1.6rem; }
-  .editor { font-size: 1.15rem; }
+  .editor, .entry-text { font-size: 1.15rem; }
   .photos { grid-template-columns: repeat(2, 1fr); gap: 18px 14px; }
   .tool-label { display: none; }
   .tool-btn { width: 52px; justify-content: center; padding: 0; }

@@ -10,9 +10,9 @@ const everyone = params.get('everyone') === '1';
 const fullFmt = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 const weekdayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
 
-function writerBlock(w, showAuthor) {
-  return el('section', { class: `print-writer${w.mine ? ' mine' : ''}` },
-    showAuthor ? el('div', { class: 'print-author' }, w.mine ? `✎ ${w.author} (me)` : `✎ ${w.author}`) : null,
+function writerBlock(w) {
+  return el('section', { class: 'print-writer' },
+    el('div', { class: 'print-author' }, `✎ ${w.author}`),
     w.content ? el('p', { class: 'print-text' }, w.content) : null,
     w.images.length
       ? el('div', { class: 'print-photos' }, w.images.map((img) => el('figure', {}, el('img', { src: img.url, alt: img.name || 'Photo' }))))
@@ -22,13 +22,16 @@ function writerBlock(w, showAuthor) {
 
 function dayPage(day) {
   const d = parseDate(day.date);
-  // Name each writer when the page has more than one, or when it isn't mine.
-  const showAuthor = day.writers.length > 1 || !day.writers[0].mine;
   return el('article', { class: 'print-sheet' },
     el('header', { class: 'print-date' },
       el('div', { class: 'wd' }, weekdayFmt.format(d)),
       el('div', { class: 'dt' }, fullFmt.format(d))),
-    day.writers.map((w) => writerBlock(w, showAuthor)),
+    day.theme
+      ? el('div', { class: 'print-theme' },
+        el('span', { class: 'theme-label' }, 'Theme of the day'),
+        el('span', { class: 'theme-text' }, day.theme))
+      : null,
+    day.writers.map(writerBlock),
   );
 }
 
