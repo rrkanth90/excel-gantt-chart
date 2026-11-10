@@ -289,3 +289,90 @@ test('pages for the PDF view come back in date order with the right writers', as
   assert.deepEqual(privPages.days.map((d) => d.date), ['2026-11-02', '2026-11-03']);
   await priv.close();
 });
+
+test('writers are listed in the order they started the day', async () => {
+  const dir = tmp();
+  const srv = await start(dir);
+  for (const [u, n] of [['owner', 'Owner'], ['bob', 'Bob'], ['carol', 'Carol']]) {
+    createUser(srv.db, { username: u, displayName: n, password: `${u}-pass-1`, isAdmin: u === 'owner' });
+  }
+  const c = {};
+  for (const u of ['owner', 'bob', 'carol']) {
+    c[u] = client(srv.base);
+    await c[u]('/api/login', { method: 'POST', body: { username: u, password: `${u}-pass-1` } });
+  }
+  const day = '/api/days/2026-11-10';
+  // Carol starts first (with a photo), then Bob writes, then the owner.
+  const form = new FormData();
+  form.append('images', new Blob([PNG], { type: 'image/png' }), 'dot.png');
+  await c.carol(`${day}/images`, { method: 'POST', form });
+  await c.bob(`${day}/entry`, { method: 'PUT', body: { content: 'Bob second', version: 0 } });
+  await c.owner(`${day}/entry`, { method: 'PUT', body: { content: 'Owner third', version: 0 } });
+  // Pin the start times so the order doesn't depend on timing within a millisecond.
+  const setStart = (table, at, username) => srv.db
+    .prepare(`UPDATE ${table} SET created_at = ? WHERE user_id = (SELECT id FROM users WHERE username = ?)`)
+    .run(at, username);
+  setStart('images', '2026-11-10T08:00:00.000Z', 'carol');
+  setStart('entries', '2026-11-10T09:00:00.000Z', 'bob');
+  setStart('entries', '2026-11-10T10:00:00.000Z', 'owner');
+
+  const ownerView = (await c.owner(day)).json;
+  assert.deepEqual(ownerView.others.map((o) => o.author), ['Carol', 'Bob']);
+  assert.equal(ownerView.startedAt, '2026-11-10T10:00:00.000Z');
+  assert.ok(ownerView.others.every((o) => o.startedAt < ownerView.startedAt));
+  // Someone who hasn't written has no start time, so nothing is shown for them.
+  const empty = (await c.owner('/api/days/2026-11-11')).json;
+  assert.equal(empty.startedAt, null);
+
+  const pages = (await c.owner('/api/pages?from=2026-11-10&to=2026-11-10&everyone=1')).json;
+  assert.deepEqual(pages.days[0].writers.map((w) => w.author), ['Carol', 'Bob', 'Owner']);
+  await srv.close();
+});
+
+test('theme of the day can be set, changed safely and cleared', async () => {
+  const dir = tmp();
+  const srv = await start(dir);
+  createUser(srv.db, { username: 'alice', displayName: 'Alice', password: 'alice-pass' });
+  createUser(srv.db, { username: 'bob', displayName: 'Bob', password: 'bob-pass-1' });
+  const alice = client(srv.base);
+  const bob = client(srv.base);
+  await alice('/api/login', { method: 'POST', body: { username: 'alice', password: 'alice-pass' } });
+  await bob('/api/login', { method: 'POST', body: { username: 'bob', password: 'bob-pass-1' } });
+  const url = '/api/days/2026-11-10/theme';
+
+  assert.deepEqual((await alice('/api/days/2026-11-10')).json.theme, { text: '', version: 0, updatedBy: null, updatedAt: null });
+  let r = await alice(url, { method: 'PUT', body: { text: '  Diwali   at grandma\'s ', version: 0 } });
+  assert.equal(r.json.theme.text, "Diwali at grandma's");
+  assert.equal(r.json.theme.version, 1);
+  assert.equal(r.json.theme.updatedBy, 'Alice');
+
+  // Shared diary: Bob sees it, and a stale edit is refused with the latest theme.
+  assert.equal((await bob('/api/days/2026-11-10')).json.theme.text, "Diwali at grandma's");
+  r = await bob(url, { method: 'PUT', body: { text: 'Stale', version: 0 } });
+  assert.equal(r.status, 409);
+  assert.equal(r.json.theme.text, "Diwali at grandma's");
+  r = await bob(url, { method: 'PUT', body: { text: 'Festival of lights', version: 1 } });
+  assert.equal(r.json.theme.version, 2);
+  assert.equal(r.json.theme.updatedBy, 'Bob');
+
+  // A day with only a theme shows in the index and the PDF pages.
+  assert.deepEqual((await alice('/api/dates')).json.dates, [{ date: '2026-11-10', mine: false }]);
+  const pages = (await alice('/api/pages?from=2026-11-01&to=2026-11-30&everyone=1')).json;
+  assert.deepEqual(pages.days.map((d) => [d.date, d.theme, d.writers.length]), [['2026-11-10', 'Festival of lights', 0]]);
+
+  assert.equal((await alice(url, { method: 'PUT', body: { text: 'x'.repeat(121), version: 2 } })).status, 400);
+  r = await alice(url, { method: 'PUT', body: { text: '', version: 2 } });
+  assert.equal(r.json.theme.text, '');
+  assert.deepEqual((await alice('/api/dates')).json.dates, []);
+  await srv.close();
+
+  // Private mode: each writer has their own theme.
+  const priv = await start(dir, { diaryMode: 'private' });
+  const a2 = client(priv.base);
+  const b2 = client(priv.base);
+  await a2('/api/login', { method: 'POST', body: { username: 'alice', password: 'alice-pass' } });
+  await b2('/api/login', { method: 'POST', body: { username: 'bob', password: 'bob-pass-1' } });
+  await a2(url, { method: 'PUT', body: { text: 'Alice only', version: 0 } });
+  assert.equal((await b2('/api/days/2026-11-10')).json.theme.text, '');
+  await priv.close();
+});

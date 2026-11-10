@@ -71,4 +71,23 @@ module.exports = [
       `);
     },
   },
+  {
+    version: 2,
+    name: 'theme of the day',
+    up(db) {
+      db.exec(`
+        -- One theme per day. scope_user_id is 0 for the shared diary, or the
+        -- writer's id in private mode so private themes stay private.
+        CREATE TABLE day_themes (
+          entry_date    TEXT NOT NULL,
+          scope_user_id INTEGER NOT NULL DEFAULT 0,
+          theme         TEXT NOT NULL DEFAULT '',
+          version       INTEGER NOT NULL DEFAULT 1,
+          updated_by    INTEGER REFERENCES users(id),
+          updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          PRIMARY KEY (entry_date, scope_user_id)
+        );
+      `);
+    },
+  },
 ];

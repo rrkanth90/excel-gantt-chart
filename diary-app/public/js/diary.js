@@ -19,6 +19,10 @@ const state = {
   retryTimer: null,
   conflict: false,
   loadSeq: 0,
+  writing: false,      // my entry is open for writing though nothing is saved yet
+  myStartedAt: null,   // when I started on this day, from the server
+  theme: { text: '', version: 0 },
+  themeSaving: false,
 };
 
 // ---------------------------------------------------------------- status
@@ -200,22 +204,122 @@ function renderMyPhotos(images) {
   $('my-photos').replaceChildren(...images.map((img) => photoCard(img, { removable: true })));
 }
 
-function renderOthers(others) {
-  const owner = state.me.isAdmin;
-  $('others').replaceChildren(...others.map((o) => {
-    const hasText = !!(o.entry && o.entry.content);
-    return el('div', { class: 'other' },
-      el('div', { class: 'other-author' }, `✎ ${o.author}`,
-        owner && hasText ? el('button', {
-          class: 'other-remove', type: 'button', title: `Remove what ${o.author} wrote on this day`,
-          onclick: () => removeOthersWriting(o),
-        }, 'Remove') : null),
-      hasText ? el('div', { class: 'other-text' }, o.entry.content) : null,
-      o.images.length ? el('div', { class: 'photos' },
-        o.images.map((img) => photoCard(img, { removable: owner, author: o.author }))) : null,
-    );
-  }));
+// ---------------------------------------------------------------- entries
+// Everyone's writing for the day is one list, ordered by who started first.
+// My entry is the same textarea node all the time (it is never moved while
+// open, so typing and focus aren't disturbed); others' entries go around it.
+// Nothing is shown for me until I start: no empty placeholder, just a Write button.
+
+const myEntry = $('my-entry');
+const writeBtn = $('write-btn');
+let lastOthers = [];
+
+function iHaveStarted() {
+  return state.writing || editor.value.trim() !== '' || $('my-photos').children.length > 0;
 }
+
+function otherEntry(o) {
+  const owner = state.me.isAdmin;
+  const hasText = !!(o.entry && o.entry.content);
+  return el('section', { class: 'entry other' },
+    el('div', { class: 'entry-author' }, `✎ ${o.author}`,
+      owner && hasText ? el('button', {
+        class: 'other-remove', type: 'button', title: `Remove what ${o.author} wrote on this day`,
+        onclick: () => removeOthersWriting(o),
+      }, 'Remove') : null),
+    hasText ? el('div', { class: 'entry-text' }, o.entry.content) : null,
+    o.images.length ? el('div', { class: 'photos' },
+      o.images.map((img) => photoCard(img, { removable: owner, author: o.author }))) : null,
+  );
+}
+
+function renderEntries(others = lastOthers) {
+  lastOthers = others;
+  const container = $('entries');
+  const started = iHaveStarted();
+  myEntry.hidden = !started;
+  writeBtn.hidden = started;
+  container.querySelectorAll('.entry.other').forEach((n) => n.remove());
+  // Not saved yet: I count as starting now, after everyone already here.
+  const mine = state.myStartedAt || '￿';
+  for (const o of others) {
+    const node = otherEntry(o);
+    if (started && o.startedAt < mine) container.insertBefore(node, myEntry);
+    else container.append(node);
+  }
+}
+
+// Open my entry for writing (Write button, voice or adding a photo).
+function startWriting({ focus = true } = {}) {
+  if (!iHaveStarted()) {
+    state.writing = true;
+    renderEntries();
+  }
+  if (focus) {
+    editor.focus();
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    autoGrow();
+  }
+}
+writeBtn.addEventListener('click', () => startWriting());
+
+// ---------------------------------------------------------------- theme of the day
+
+const themeShow = $('theme-show');
+const themeAdd = $('theme-add');
+const themeForm = $('theme-form');
+const themeInput = $('theme-input');
+
+function renderTheme() {
+  const editing = !themeForm.hidden;
+  if (editing) return;
+  const text = state.theme.text;
+  $('theme-text').textContent = text;
+  themeShow.hidden = !text;
+  themeAdd.hidden = !!text;
+  themeShow.title = state.theme.updatedBy ? `Set by ${state.theme.updatedBy}` : '';
+}
+
+function editTheme() {
+  themeInput.value = state.theme.text;
+  themeShow.hidden = true;
+  themeAdd.hidden = true;
+  themeForm.hidden = false;
+  themeInput.focus();
+}
+
+function closeThemeForm() {
+  themeForm.hidden = true;
+  renderTheme();
+}
+
+themeAdd.addEventListener('click', editTheme);
+$('theme-edit').addEventListener('click', editTheme);
+$('theme-cancel').addEventListener('click', closeThemeForm);
+themeInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeThemeForm(); });
+themeForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (state.themeSaving) return;
+  const date = state.date;
+  state.themeSaving = true;
+  try {
+    const { theme } = await api(`/api/days/${date}/theme`, {
+      method: 'PUT',
+      body: { text: themeInput.value, version: state.theme.version },
+    });
+    if (date !== state.date) return;
+    state.theme = theme;
+    closeThemeForm();
+  } catch (err) {
+    if (err.status === 409 && date === state.date) {
+      state.theme = err.data.theme;
+      closeThemeForm();
+      toast(`${state.theme.updatedBy || 'Someone'} just changed the theme. Tap Change to edit it.`, 6000);
+    } else toast(err.message);
+  } finally {
+    state.themeSaving = false;
+  }
+});
 
 async function removeOthersWriting(o) {
   if (!confirm(`Remove what ${o.author} wrote on this day? Their photos stay unless you remove them too. The text is kept in the diary's history on the server.`)) return;
@@ -233,8 +337,15 @@ async function openDay(date, { direction = 0, push = true } = {}) {
   state.date = date;
   state.dirty = false;
   state.version = 0;
+  state.writing = false;
+  state.myStartedAt = null;
+  state.theme = { text: '', version: 0 };
   editor.value = '';
+  $('my-photos').replaceChildren();
+  themeForm.hidden = true;
   renderHead(date);
+  renderTheme();
+  renderEntries([]);
   if (push) history.replaceState(null, '', `#${date}`);
   page.classList.remove('turn-next', 'turn-prev');
   if (direction) { void page.offsetWidth; page.classList.add(direction > 0 ? 'turn-next' : 'turn-prev'); }
@@ -248,7 +359,12 @@ async function openDay(date, { direction = 0, push = true } = {}) {
   } catch (err) {
     if (seq !== state.loadSeq) return;
     const draft = readDraft(date);
-    if (draft) { editor.value = draft.content; state.version = draft.baseVersion; state.dirty = true; }
+    if (draft) {
+      editor.value = draft.content;
+      state.version = draft.baseVersion;
+      state.dirty = true;
+      renderEntries([]);
+    }
     setStatus('Could not open this page, check your connection', 'error');
     state.retryTimer = setTimeout(() => { if (state.date === date) openDay(date, { push: false }); }, 5000);
   } finally {
@@ -284,7 +400,10 @@ function applyServerDay(data, { initial = false } = {}) {
     if (atEnd && document.activeElement === editor) editor.setSelectionRange(editor.value.length, editor.value.length);
   }
   renderMyPhotos(data.images);
-  renderOthers(data.others);
+  state.myStartedAt = data.startedAt;
+  if (!state.themeSaving) state.theme = data.theme;
+  renderTheme();
+  renderEntries(data.others);
   autoGrow();
 }
 
@@ -360,6 +479,7 @@ $('photo-input').addEventListener('change', async (e) => {
   e.target.value = '';
   if (!files.length) return;
   const date = state.date;
+  startWriting({ focus: false });
   const placeholders = files.map((f) => {
     const card = el('figure', { class: 'photo uploading' }, el('img', { src: URL.createObjectURL(f), alt: '' }));
     $('my-photos').append(card);
@@ -375,7 +495,7 @@ $('photo-input').addEventListener('change', async (e) => {
       const { images, rejected } = await api(`/api/days/${date}/images`, { method: 'POST', form });
       if (rejected && rejected.length) toast(`Skipped files that are not photos: ${rejected.join(', ')}`);
       if (date === state.date) {
-        for (const img of images) $('my-photos').append(photoCard(img, { mine: true }));
+        for (const img of images) $('my-photos').append(photoCard(img, { removable: true }));
       }
     }
     toast(files.length === 1 ? 'Photo added' : 'Photos added');
@@ -383,6 +503,7 @@ $('photo-input').addEventListener('change', async (e) => {
     toast(err.message);
   } finally {
     for (const p of placeholders) { URL.revokeObjectURL(p.querySelector('img').src); p.remove(); }
+    if (date === state.date) refresh();
   }
 });
 
@@ -395,6 +516,7 @@ async function removePhoto(id, card, author) {
     await api(`/api/images/${id}`, { method: 'DELETE' });
     card.remove();
     if (author) refresh();
+    else renderEntries();
   } catch (err) { toast(err.message); }
 }
 
@@ -438,10 +560,7 @@ micBtn.addEventListener('click', () => {
   if (!window.isSecureContext) return toast('Voice typing needs the diary to be opened over https://', 6000);
   if (dictation.listening) dictation.stop();
   else {
-    if (document.activeElement !== editor) {
-      editor.focus();
-      editor.setSelectionRange(editor.value.length, editor.value.length);
-    }
+    if (document.activeElement !== editor) startWriting();
     dictation.start();
   }
 });
@@ -571,6 +690,7 @@ async function openIndex() {
   state.me = me.user;
   state.diaryMode = me.diaryMode;
   $('menu-user').textContent = `Signed in as ${me.user.displayName}`;
+  $('my-author').textContent = `✎ ${me.user.displayName} (you)`;
   document.querySelectorAll('.admin-only').forEach((n) => { n.hidden = !me.user.isAdmin; });
   const fromHash = location.hash.slice(1);
   await openDay(/^\d{4}-\d{2}-\d{2}$/.test(fromHash) ? fromHash : localDate());

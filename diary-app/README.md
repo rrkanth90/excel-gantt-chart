@@ -3,11 +3,12 @@
 A private, notebook-style diary for you and the people you invite.
 
 - **Invite-only:** no sign-up page. The owner creates a login ID and password for each person. Passwords are stored as bcrypt hashes, failed logins are rate-limited, and the owner can remove someone's access at any time.
-- **One page per day:** a ruled notebook page with a red margin and handwriting. Swipe, use the ‹ › buttons or open the **Index** to move between days.
+- **One page per day:** a plain notebook page in handwriting. Everyone's writing for the day is listed in the order people started, with nothing shown for someone until they tap **Write on this page**. Swipe, use the ‹ › buttons or open the **Index** to move between days.
+- **Theme of the day:** anyone can add a short highlighted theme under the date, such as "Diwali preparations". It also appears in the PDF.
 - **Autosave:** your writing is saved about a second after you stop typing. Unsaved text is also kept on the device, so a dropped connection or a closed tab loses nothing.
 - **Photos:** add photos from your phone's camera or gallery, or from your computer. Large photos are shrunk before upload.
 - **Voice typing:** tap 🎤 and speak. It supports English and Indian languages among others. In English you can say "new line", "full stop", "comma" or "question mark".
-- **Many writers at once:** every person has their own page for each day, so writers never overwrite each other. In `shared` mode everyone also sees what the others wrote that day, and the page refreshes every 30 seconds. If you edit the same page on two devices, the diary asks which version to keep instead of losing either one.
+- **Many writers at once:** every person has their own entry on each day's page, so writers never overwrite each other. In `shared` mode everyone also sees what the others wrote that day, and the page refreshes every 30 seconds. If you edit the same page on two devices, the diary asks which version to keep instead of losing either one.
 - **Mobile friendly:** works on phones and tablets. Use "Add to Home Screen" to open it like an app.
 
 ## Run it

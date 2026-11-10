@@ -35,14 +35,34 @@
         <div class="fulldate" id="fulldate"></div>
       </div>
 
-      <section class="my-writing">
-        <label for="editor" class="sr-only">Today's entry</label>
-        <textarea id="editor" class="editor" placeholder="Dear diary…" spellcheck="true"></textarea>
-        <div class="interim" id="interim" aria-live="polite" hidden></div>
-        <div class="photos" id="my-photos"></div>
-      </section>
+      <div class="day-theme" id="day-theme">
+        <div class="theme-show" id="theme-show" hidden>
+          <span class="theme-label">Theme of the day</span>
+          <span class="theme-text" id="theme-text"></span>
+          <button class="theme-edit" id="theme-edit" type="button">Change</button>
+        </div>
+        <button class="theme-add" id="theme-add" type="button">✦ Add a theme for this day</button>
+        <form class="theme-form" id="theme-form" hidden>
+          <label for="theme-input" class="theme-label">Theme of the day</label>
+          <input id="theme-input" maxlength="120" autocomplete="off" enterkeyhint="done">
+          <div class="theme-actions">
+            <button type="button" class="btn" id="theme-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
 
-      <section class="others" id="others" aria-label="Others who wrote on this day"></section>
+      <!-- Everyone's writing for the day, in the order they started. -->
+      <section class="entries" id="entries" aria-label="What was written on this day">
+        <section class="entry mine" id="my-entry" hidden>
+          <div class="entry-author" id="my-author"></div>
+          <label for="editor" class="sr-only">Your entry</label>
+          <textarea id="editor" class="editor" spellcheck="true"></textarea>
+          <div class="interim" id="interim" aria-live="polite" hidden></div>
+          <div class="photos" id="my-photos"></div>
+        </section>
+      </section>
+      <button class="write-btn" id="write-btn" type="button" hidden>✎ Write on this page</button>
     </article>
   </main>
 

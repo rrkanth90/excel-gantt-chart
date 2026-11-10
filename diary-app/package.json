@@ -7,7 +7,7 @@
     "start": "node server.js",
     "create-user": "node scripts/create-user.js",
     "backup": "node scripts/backup.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test --test-force-exit test/*.test.js"
   },
   "license": "UNLICENSED",
   "dependencies": {

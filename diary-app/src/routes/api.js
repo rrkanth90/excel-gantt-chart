@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const { hashPassword, validatePassword, createUser } = require('../auth');
 
 const MAX_CONTENT = 200000;
+const MAX_THEME = 120;
 
 function isValidDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -61,6 +62,29 @@ function createApiRouter({ db, config, auth }) {
   });
   const entryJson = (row) =>
     row ? { content: row.content, version: row.version, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+
+  // When a writer started on a day: their first words or first photo.
+  // Pages list writers in this order, whoever started first at the top.
+  const startedStmt = db.prepare(
+    `SELECT MIN(t) AS t FROM (
+       SELECT created_at AS t FROM entries WHERE user_id = @user AND entry_date = @date AND content != ''
+       UNION ALL
+       SELECT created_at FROM images WHERE user_id = @user AND entry_date = @date)`,
+  );
+  const startedAt = (userId, date) => startedStmt.get({ user: userId, date }).t;
+  const byStart = (a, b) =>
+    a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : a.author.localeCompare(b.author);
+
+  // The theme of the day is shared in shared mode and per writer in private mode.
+  const themeScope = (req) => (shared ? 0 : req.user.id);
+  const themeStmt = db.prepare(
+    `SELECT t.*, u.display_name FROM day_themes t LEFT JOIN users u ON u.id = t.updated_by
+     WHERE t.entry_date = ? AND t.scope_user_id = ?`,
+  );
+  const themeJson = (row) =>
+    row
+      ? { text: row.theme, version: row.version, updatedBy: row.display_name || null, updatedAt: row.updated_at }
+      : { text: '', version: 0, updatedBy: null, updatedAt: null };
 
   // ---- session --------------------------------------------------------------
 
@@ -126,15 +150,57 @@ function createApiRouter({ db, config, auth }) {
         .all(req.user.id, date, date);
       const entryStmt = db.prepare('SELECT * FROM entries WHERE user_id = ? AND entry_date = ?');
       const imgStmt = db.prepare('SELECT * FROM images WHERE user_id = ? AND entry_date = ? ORDER BY id');
-      others = writers.map((w) => ({
-        userId: w.id,
-        author: w.display_name,
-        entry: entryJson(entryStmt.get(w.id, date)),
-        images: imgStmt.all(w.id, date).map(imageJson),
-      }));
+      others = writers
+        .map((w) => ({
+          userId: w.id,
+          author: w.display_name,
+          startedAt: startedAt(w.id, date),
+          entry: entryJson(entryStmt.get(w.id, date)),
+          images: imgStmt.all(w.id, date).map(imageJson),
+        }))
+        .sort(byStart);
     }
 
-    res.json({ date, entry: entryJson(mine), images: myImages, others });
+    res.json({
+      date,
+      theme: themeJson(themeStmt.get(date, themeScope(req))),
+      entry: entryJson(mine),
+      images: myImages,
+      startedAt: startedAt(req.user.id, date),
+      others,
+    });
+  });
+
+  // Set the theme of the day (empty text clears it). Like pages, the client
+  // sends the version it saw so two people editing at once don't overwrite.
+  router.put('/days/:date/theme', (req, res) => {
+    const { text, version } = req.body || {};
+    if (typeof text !== 'string') return res.status(400).json({ error: 'Theme text is required.' });
+    const theme = text.replace(/\s+/g, ' ').trim();
+    if (theme.length > MAX_THEME) return res.status(400).json({ error: `Keep the theme under ${MAX_THEME} characters.` });
+    const date = req.params.date;
+    const scope = themeScope(req);
+    const result = db.transaction(() => {
+      const existing = themeStmt.get(date, scope);
+      if (!existing) {
+        if (theme === '') return { row: null };
+        db.prepare('INSERT INTO day_themes (entry_date, scope_user_id, theme, updated_by) VALUES (?, ?, ?, ?)').run(
+          date, scope, theme, req.user.id,
+        );
+      } else if (existing.version !== (Number(version) || 0)) {
+        return { conflict: existing };
+      } else if (existing.theme !== theme) {
+        db.prepare(
+          `UPDATE day_themes SET theme = ?, version = version + 1, updated_by = ?,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE entry_date = ? AND scope_user_id = ?`,
+        ).run(theme, req.user.id, date, scope);
+      }
+      return { row: themeStmt.get(date, scope) };
+    })();
+    if (result.conflict) {
+      return res.status(409).json({ error: 'Someone else just changed the theme.', theme: themeJson(result.conflict) });
+    }
+    res.json({ theme: themeJson(result.row) });
   });
 
   // Save my page for a day. The client sends the version it started editing
@@ -239,9 +305,11 @@ function createApiRouter({ db, config, auth }) {
            SELECT entry_date, user_id = @me AS mine FROM entries WHERE content != '' ${who}
            UNION ALL
            SELECT entry_date, user_id = @me AS mine FROM images WHERE 1 ${who}
+           UNION ALL
+           SELECT entry_date, 0 AS mine FROM day_themes WHERE theme != '' AND scope_user_id = @scope
          ) GROUP BY entry_date ORDER BY entry_date DESC`,
       )
-      .all({ me: req.user.id });
+      .all({ me: req.user.id, scope: themeScope(req) });
     res.json({ dates: rows.map((r) => ({ date: r.date, mine: !!r.mine })) });
   });
 
@@ -261,7 +329,7 @@ function createApiRouter({ db, config, auth }) {
     const params = { from, to, me: req.user.id };
     const entries = db
       .prepare(
-        `SELECT x.entry_date, x.user_id, x.content, u.display_name FROM entries x JOIN users u ON u.id = x.user_id
+        `SELECT x.entry_date, x.user_id, x.content, x.created_at, u.display_name FROM entries x JOIN users u ON u.id = x.user_id
          WHERE x.entry_date BETWEEN @from AND @to AND x.content != '' ${who}`,
       )
       .all(params);
@@ -271,28 +339,41 @@ function createApiRouter({ db, config, auth }) {
          WHERE x.entry_date BETWEEN @from AND @to ${who} ORDER BY x.id`,
       )
       .all(params);
+    const themes = db
+      .prepare(
+        `SELECT entry_date, theme FROM day_themes
+         WHERE entry_date BETWEEN @from AND @to AND scope_user_id = @scope AND theme != ''`,
+      )
+      .all({ from, to, scope: themeScope(req) });
 
     const days = new Map();
-    const writer = (date, userId, author) => {
-      if (!days.has(date)) days.set(date, new Map());
-      const writers = days.get(date);
-      if (!writers.has(userId)) {
-        writers.set(userId, { author, mine: userId === req.user.id, content: '', images: [] });
-      }
-      return writers.get(userId);
+    const day = (date) => {
+      if (!days.has(date)) days.set(date, { theme: '', writers: new Map() });
+      return days.get(date);
     };
-    for (const e of entries) writer(e.entry_date, e.user_id, e.display_name).content = e.content;
-    for (const i of images) writer(i.entry_date, i.user_id, i.display_name).images.push(imageJson(i));
+    const writer = (date, userId, author, at) => {
+      const writers = day(date).writers;
+      if (!writers.has(userId)) {
+        writers.set(userId, { author, mine: userId === req.user.id, startedAt: at, content: '', images: [] });
+      }
+      const w = writers.get(userId);
+      if (at < w.startedAt) w.startedAt = at;
+      return w;
+    };
+    for (const e of entries) writer(e.entry_date, e.user_id, e.display_name, e.created_at).content = e.content;
+    for (const i of images) writer(i.entry_date, i.user_id, i.display_name, i.created_at).images.push(imageJson(i));
+    for (const t of themes) day(t.entry_date).theme = t.theme;
 
     res.json({
       from,
       to,
       days: [...days]
         .sort(([a], [b]) => (a < b ? -1 : 1))
-        .map(([date, writers]) => ({
+        .map(([date, d]) => ({
           date,
-          // My page first, then the others by name, like the day view.
-          writers: [...writers.values()].sort((a, b) => (b.mine - a.mine) || a.author.localeCompare(b.author)),
+          theme: d.theme,
+          // Whoever started first that day comes first, like the day view.
+          writers: [...d.writers.values()].sort(byStart),
         })),
     });
   });
